@@ -13,18 +13,27 @@ namespace DistributionalSemantics
         static void Main(string[] args)
         {
             
-            Model m = new Model("D://glove_vec//vecs.txt");
-            ClassificationSet cs = new ClassificationSet("D://glove_vec//esl", ClassificationSet.SetType.ESL);
-            //Model.loadCentroids("D://glove_vec/centroids/paragram/centroids5");
+            Model m = new Model("D://glove_vec//paragram_filtered_vecs.txt");
+            RegressionSet sl999 = new RegressionSet("D://SimLex-999//SimLex-999.txt");
+            ClassificationSet esl = new ClassificationSet("D://glove_vec//esl", ClassificationSet.SetType.ESL);
+            ClassificationSet toefl = new ClassificationSet("D://glove_vec//toefl", ClassificationSet.SetType.TOEFL);
+            //var dict = HelperFunctions.generateDictionary(new List<TestSet> { sl999, esl, toefl });
             
-            Model.compStyle = Vector.comparisonStyle.Cosine;
-            Classifier c = new Classifier(cs, m);
+            Model.loadCentroids("D://glove_vec/centroids_original5");
             
-            double acc = c.accuracy();
+            Model.compStyle = Vector.comparisonStyle.RESM;
+            Classifier cEsl = new Classifier(esl, m);
+            Classifier cToefl = new Classifier(toefl, m);
+            var r0 = m.generateEntriesForComparison(sl999);
+            double acc = cEsl.accuracy();
+            double acc2 = cToefl.accuracy();
+            double rho = HelperFunctions.rho(sl999, r0, 0);
 
+            System.Console.WriteLine("ESL: {0}\nTOEFL: {1}\nSimLex999: {2}", acc, acc2, rho);
+            Console.ReadKey();
             /*
+            
             Model.loadCentroids("D://glove_vec/centroids5");
-            */Simlex sl = new Simlex("D://SimLex-999//SimLex-999.txt");
             Model.sl = sl;
             
             Model.compStyle = Vector.comparisonStyle.Cosine;
@@ -33,6 +42,7 @@ namespace DistributionalSemantics
             Console.WriteLine(result0);
             StreamWriter sw = new StreamWriter("D://results.txt");
             Model.compStyle = Vector.comparisonStyle.CosineHR;
+            */
             /*for (int i = 0; i < 100 ; i++)
             {
                 //Model.Beta1 = i/10.0;

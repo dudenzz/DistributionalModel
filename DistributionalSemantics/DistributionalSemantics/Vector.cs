@@ -131,8 +131,8 @@ namespace DistributionalSemantics
                     switch (style)
                     {
                         case comparisonStyle.RESM:
-                            int top = 10;
-                            int k = 20;
+                            int top = 100;
+                            int k = 30;
                             var asc_order1 = sortedComponents(this, true, top);
                             var asc_order2 = sortedComponents(toCompareWith, true, top);
                             var desc_order1 = sortedComponents(this, false, top);
@@ -150,29 +150,19 @@ namespace DistributionalSemantics
                                     double p2 = Math.Exp(-i2*k/(double)v_size);
                                     result1 += (double)(p1 * p2);
                                 }
-                                else
-                                {
-                                    int i1 = i + 1;
-                                    int i2 = 300;
-                                    double p1 = Math.Exp(-i1 * k / (double)v_size);
-                                    double p2 = Math.Exp(-i2 * k / (double)v_size);
-                                    result1 += (double)(p1 * p2);
-                                }
-                                int dc1 = asc_order1[i];
-                                if (desc_order2.Contains(c1))
+                                
+                                int dc1 = desc_order1[i];
+                                if (desc_order2.Contains(dc1))
                                 {
                                     int di1 = i;
                                     int di2 = desc_order2.IndexOf(c1);
-                                    double res = Math.Exp(-di1 * k / v_size) * Math.Exp(-di2 * k / v_size);
-                                    result2 += (double)res;
+                                    
+                                    double pi1 = Math.Exp(-di1 * k / (double)v_size);
+                                    double pi2 = Math.Exp(-di2 *k/(double)v_size);
+                                    result2 += (double)(pi1 * pi2);
                                 }
-                                else
-                                {
-                                    int di1 = i;
-                                    int di2 = 300;
-                                    double res = Math.Exp(-di1 * k / v_size) * Math.Exp(-di2 * k / v_size);
-                                    result2 += (double)res;
-                                }
+                                
+                                
                                 
                             }
                             tcs.SetResult((double)(result1+result2));
@@ -198,23 +188,23 @@ namespace DistributionalSemantics
                         
                             var cent1 = Model.centroidsModel.getVector(this.label);
                             var cent2 = Model.centroidsModel.getVector(toCompareWith.label);
-                            //double cent_sim1 = Model.sl.findEntry(this.label, toCompareWith.label).simLex / 10;
-                            double cent_sim2 = Model.sl.findEntry(this.label, toCompareWith.label).simLex / 10;
+                            ////double cent_sim1 = Model.sl.findEntry(this.label, toCompareWith.label).simLex / 10;
+                            //double cent_sim2 = Model.sl.findEntry(this.label, toCompareWith.label).simLex / 10;
                             //double cent_sim1 = Model.sl.findEntry(this.label, toCompareWith.label).concw1 / 10;
                             
-                            double cent_sim1 = cosine(this.values, toCompareWith.values, v_size);
+                            double cent_sim1 = cosine(this.values, cent1.values, v_size);
                             //double cent_sim2 = cosine(cent1.values, this.values, v_size);
                             //cent_sim1 = cent_sim2;
                             double q1 = (double)(-1*Model.Beta2*(1- cent_sim1- Model.Beta1));
-                            double q2 = (double)(-1*Model.Beta2 * (1 - cent_sim2 - Model.Beta1));
+                            //double q2 = (double)(-1*Model.Beta2 * (1 - cent_sim2 - Model.Beta1));
                             double r1 = (double)(1 / (1 + Math.Exp(-q1)));
-                            double r2 = (double)(1 / (1 + Math.Exp(-q2)));
-                            double y_est = cosine(this.values, toCompareWith.values, v_size) + Model.Beta3 * r1;
+                            //double r2 = (double)(1 / (1 + Math.Exp(-q2)));
+                            double y_est = cosine(this.values, toCompareWith.values, v_size) - Math.Pow(cent_sim1, 3.0);
                             double y = Model.sl.findEntry(this.label, toCompareWith.label).simLex / 10;
                             
                             if(Model.updating)
                                 {
-                                    Model.update(q1, q2, r1, r2, y_est, y);
+                                    //Model.update(q1, q2, r1, r2, y_est, y);
                                     Model.msqe += (y - y_est) * (y - y_est) / 2;
                                 }
                             tcs.SetResult(y_est);

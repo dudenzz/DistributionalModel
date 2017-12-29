@@ -8,8 +8,36 @@ namespace DistributionalSemantics
 {
     public static class HelperFunctions
     {
+        public static List<string> generateDictionary(List<TestSet> sets)
+        {
+            List<string> dict = new List<string>();
+            foreach(TestSet set in sets)
+            {
+                if(set.GetType() == typeof(RegressionSet))
+                {
+                    var set_r = set as RegressionSet;
+                    foreach(Entry entry in set_r.Entries)
+                    {
+                        if (!dict.Contains(entry.word1.Trim().ToLower())) dict.Add(entry.word1.Trim().ToLower());
+                        if (!dict.Contains(entry.word2.Trim().ToLower())) dict.Add(entry.word2.Trim().ToLower());
+                    }
+                }
+                if(set.GetType() == typeof(ClassificationSet))
+                {
+                    var set_c = set as ClassificationSet;
+                    foreach(ClassificationEntry entry in set_c.Questions)
+                    {
+                        if (!dict.Contains(entry.QuestionWord.Trim().ToLower())) dict.Add(entry.QuestionWord.Trim().ToLower());
+                        foreach (string possibility in entry.Possibilities)
+                            if (!dict.Contains(possibility.Trim().ToLower())) dict.Add(possibility.Trim().ToLower());
+                    }
+                }
+
+            }
+            return dict;
+        }
         public static Random rng = new Random();
-        public static double rho(Simlex simlexInstance, List<SimpleEntry> calculatedResults, int idx)
+        public static double rho(RegressionSet simlexInstance, List<SimpleEntry> calculatedResults, int idx)
         {
             double avg1 = 0;
             double avg2 = 0;

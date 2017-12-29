@@ -12,17 +12,17 @@ namespace DistributionalSemantics
         Vector[] vectors;
         public static Model centroidsModel;
         public static double Beta1 = 0.1;
-        public static double Beta2 = 0.2;
+        public static double Beta2 = 18;
         public static double Beta3 = 0.3;
         public static double Beta4 = 0.4;
         public static double LR1 = 0.1;
         public static double LR2 = 0.1;
         public static double LR3 = 0.1;
         public static double LR4 = 0.1;
-        public static bool updating = true;
+        public static bool updating = false;
         public static double msqe = 0;
         public static Vector.comparisonStyle compStyle = Vector.comparisonStyle.Cosine;
-        public static Simlex sl;
+        public static RegressionSet sl;
         static int batch_size = 10;
         static int counter = 0;
         static double db1 = 0;
@@ -208,7 +208,7 @@ namespace DistributionalSemantics
             sims[n - 1] = tmpF;
             vs[n - 1] = tmpV;
         }
-        public List<SimpleEntry> generateEntriesForComparison(Simlex input)
+        public List<SimpleEntry> generateEntriesForComparison(RegressionSet input)
         {
             List<SimpleEntry> entries = new List<SimpleEntry>();
             int i = 0;

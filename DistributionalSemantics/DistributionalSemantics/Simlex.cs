@@ -52,7 +52,7 @@ namespace DistributionalSemantics
             SD = double.Parse(tokens[9].Replace('.', ','));
         }
     }
-    public class Simlex
+    public class RegressionSet : TestSet
     {
         public static Random rng = new Random();
         
@@ -73,7 +73,7 @@ namespace DistributionalSemantics
                 if (e.word1 == word1 && e.word2 == word2) return e;
             return new Entry();
         }
-        public Simlex(string filename)
+        public RegressionSet(string filename)
         {
             entries = new List<Entry>();
             string[] entriesStrings = File.ReadAllLines(filename);
