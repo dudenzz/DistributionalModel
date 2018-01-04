@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -32,6 +33,155 @@ namespace DistributionalSemantics
         public static void loadCentroids(string filename)
         {
             centroidsModel = new Model(filename);
+        }
+
+        public Model retrofit(string synonymsFilename, int iterations)
+        {
+            Model newModel = new Model(vectors.Length,v_size);
+            this.vectors.CopyTo(newModel.vectors, 0);
+            newModel.index = new Dictionary<string, int>();
+            foreach(var tuple in this.index)
+            {
+                newModel.index[tuple.Key] = tuple.Value;
+            }
+            string[] syns = File.ReadAllLines(synonymsFilename);
+            for (int iter = 0; iter < iterations; iter++ )
+                foreach (string line in syns)
+                {
+                    string b_token = line.Split(' ')[0].Trim();
+                    if (!index.Keys.Contains(b_token)) continue;
+                    string[] tokens = line.Split(' ').Skip(1).ToArray();
+                    List<string> extTokens = new List<string>();
+                    foreach (string token in tokens) if (index.Keys.Contains(token)) extTokens.Add(token);
+                    tokens = extTokens.ToArray();
+                    int num = tokens.Length;
+                    if (num == 0) continue;
+                    Vector nVector = new Vector(newModel.vectors[index[b_token]].Values, b_token) * num;
+
+                    foreach (string token in tokens)
+                    {
+                        nVector += newModel.vectors[index[token]];
+                    }
+                    newModel.vectors[index[b_token]] = nVector / (2 * num);
+                }
+            return newModel;
+        }
+        public double partialDerivative(Vector v1, Vector v2, int component)
+        {
+            return v2[component] / (Vector.norm(v1) * Vector.norm(v2)) - Vector.cosine(v1, v2) * v1[component] / (Math.Pow(Vector.norm(v1),2));
+        }
+        public Model cos_retrofit(string synonymsFilename, string antonymsFilename, int iterations)
+        {
+            Model newModel = new Model(vectors.Length, v_size);
+            this.vectors.CopyTo(newModel.vectors, 0);
+            newModel.index = new Dictionary<string, int>();
+            foreach (var tuple in this.index)
+            {
+                newModel.index[tuple.Key] = tuple.Value;
+            }
+            string[] syns = File.ReadAllLines(synonymsFilename);
+            string[] ants = File.ReadAllLines(antonymsFilename);
+            Stopwatch SW = new Stopwatch(); 
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                SW.Start();
+                Console.WriteLine("Running iteration : {0}", iter);
+                foreach (string line in syns)
+                {
+                    string b_token = line.Split(' ')[0].Trim();
+                    if (!index.Keys.Contains(b_token)) continue;
+                    string[] synonymTokens = line.Split(' ').Skip(1).ToArray();
+                    List<string> extSynTokens = new List<string>();
+                    foreach (string token in synonymTokens) if (index.Keys.Contains(token)) extSynTokens.Add(token);
+                    synonymTokens = extSynTokens.ToArray();
+                    int num = synonymTokens.Length;
+                    if (num == 0) continue;
+                    Vector oVector = new Vector(this.vectors[index[b_token]].Values, b_token);
+                    Vector nVector = new Vector(newModel.vectors[index[b_token]].Values, b_token);
+                    nVector.V_size = v_size;
+                    oVector.V_size = v_size;
+                    double cosineON = Vector.cosine(nVector, oVector);
+                    for (int i = 0; i < nVector.V_size; i++)
+                    {
+                        double sN = nVector[i];
+                        sN -= -2 * partialDerivative(nVector, oVector, i);
+                        sN -= 2 * cosineON * partialDerivative(oVector, nVector, i);
+                        foreach (string token in synonymTokens)
+                        {
+
+                            Vector sVector = newModel.vectors[index[token]];
+                            double cosSN = Vector.cosine(nVector, sVector);
+                            sN -= 2 * cosSN * partialDerivative(nVector, sVector, i) * 100;
+                            //sN -= -1.74 * partialDerivative(nVector, sVector, i) * 100;
+                            sN -= -2 * partialDerivative(nVector, sVector, i) * 100;
+                        }
+                        nVector[i] = sN;
+                        double difference = nVector[i] - oVector[i];
+
+
+                    }
+                    foreach (string token in synonymTokens)
+                    {
+                        Vector sVector = newModel.vectors[index[token]];
+
+                        double c1 = Vector.cosine(sVector, oVector);
+                        double c2 = Vector.cosine(sVector, nVector);
+                        double c3 = Vector.cosine(oVector, nVector);
+
+                    }
+                    newModel.vectors[index[b_token]] = nVector;
+                }
+                foreach (string line in ants)
+                {
+                    string b_token = line.Split(' ')[0].Trim();
+                    if (!index.Keys.Contains(b_token)) continue;
+                    string[] synonymTokens = line.Split(' ').Skip(1).ToArray();
+                    List<string> extSynTokens = new List<string>();
+                    foreach (string token in synonymTokens) if (index.Keys.Contains(token)) extSynTokens.Add(token);
+                    synonymTokens = extSynTokens.ToArray();
+                    int num = synonymTokens.Length;
+                    if (num == 0) continue;
+                    Vector oVector = new Vector(this.vectors[index[b_token]].Values, b_token);
+                    Vector nVector = new Vector(newModel.vectors[index[b_token]].Values, b_token);
+                    nVector.V_size = v_size;
+                    oVector.V_size = v_size;
+                    double cosineON = Vector.cosine(nVector, oVector);
+                    for (int i = 0; i < nVector.V_size; i++)
+                    {
+                        double sN = nVector[i];
+                        sN -= -2 * partialDerivative(nVector, oVector, i);
+                        sN -= 2 * cosineON * partialDerivative(oVector, nVector, i);
+                        foreach (string token in synonymTokens)
+                        {
+
+                            Vector sVector = newModel.vectors[index[token]];
+                            double cosSN = Vector.cosine(nVector, sVector);
+                            sN -= 2 * cosSN * partialDerivative(nVector, sVector, i) * 100;
+                            sN -= -0 * partialDerivative(nVector, sVector, i) * 100;
+                            //sN -= -0.46 * partialDerivative(nVector, sVector, i) * 100;
+                        }
+                        nVector[i] = sN;
+                        double difference = nVector[i] - oVector[i];
+
+
+                    }
+                    foreach (string token in synonymTokens)
+                    {
+                        Vector sVector = newModel.vectors[index[token]];
+
+                        double c1 = Vector.cosine(sVector, oVector);
+                        double c2 = Vector.cosine(sVector, nVector);
+                        double c3 = Vector.cosine(oVector, nVector);
+
+                    }
+                    newModel.vectors[index[b_token]] = nVector;
+                }
+                SW.Stop();
+                Console.WriteLine("Elapsed: {0}:{1}", SW.Elapsed.Seconds, SW.Elapsed.Milliseconds);
+                SW.Reset();
+            }
+            return newModel;
+            
         }
         public static void resetBatch()
         {
@@ -123,6 +273,15 @@ namespace DistributionalSemantics
         {
             return await vectors[index[a]].compare(vectors[index[b]],Model.compStyle);
         }
+        public async Task<double> compare(string a, string b, string[] context)
+        {
+            vectors[index[a]].Context = true;
+            Vector[] vcs = new Vector[context.Length];
+            for (int i = 0; i < context.Length; i++)
+                vcs[i] = vectors[index[context[i]]];
+            vectors[index[a]].ContextVectors = vcs;
+            return await vectors[index[a]].compare(vectors[index[b]], Model.compStyle);
+        }
         public void saveModel(string filename)
         {
             StreamWriter sw = new StreamWriter(filename);
@@ -212,13 +371,21 @@ namespace DistributionalSemantics
         {
             List<SimpleEntry> entries = new List<SimpleEntry>();
             int i = 0;
-
             foreach(Entry entry in input.Entries)
             {
+                System.Console.WriteLine(i++);
                 //Console.WriteLine(i++);
                 var t = compare(entry.word1, entry.word2);
-                t.Wait();
-                double result = t.GetAwaiter().GetResult();
+                double result = 0.5;
+                try
+                {
+                    t.Wait();
+                    result = t.GetAwaiter().GetResult();
+                }
+                catch
+                {
+
+                }
                 entries.Add(new SimpleEntry(entry.word1, entry.word2, result));
             }
             return entries;

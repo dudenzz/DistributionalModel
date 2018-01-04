@@ -9,6 +9,21 @@ namespace DistributionalSemantics
 {
     public class Vector
     {
+        bool context = false;
+
+        public bool Context
+        {
+            get { return context; }
+            set { context = value; }
+        }
+        private Vector[] contextVectors;
+
+        public Vector[] ContextVectors
+        {
+            get { return contextVectors; }
+            set { contextVectors = value; }
+        }
+
         double[] values;
 
         public double[] Values
@@ -39,6 +54,7 @@ namespace DistributionalSemantics
             Vector v = new Vector(vals, "dummy");
             return v;
         }
+
         public static int RecognizeVSize(string line)
         {
             int v_size = 0;
@@ -49,10 +65,11 @@ namespace DistributionalSemantics
         }
         public Vector(double[] values, string label)
         {
-            this.values = values;
+            this.values = new double[values.Length];
+            values.CopyTo(this.values, 0);
             this.label = label;
-
         }
+        
         public override string ToString()
         {
             return this.label;
@@ -73,7 +90,8 @@ namespace DistributionalSemantics
         {
             Cosine,
             CosineHR,
-            RESM
+            RESM,
+            APSyn
         }
         #region sorting components
         public int findMax(List<double> values, List<int> removed)
@@ -122,6 +140,60 @@ namespace DistributionalSemantics
             return result.Take(top).ToList();
         }
         #endregion
+        public double this[int i] { get { return values[i]; }
+            set { this.values[i] = value; }
+        }
+        public static double norm(Vector v)
+        {
+            double l1 = 0;
+            for (int i = 0; i < v.v_size; i++)
+            {
+                l1 += v.values[i] * v.values[i];
+            }
+            return Math.Sqrt(l1);
+        }
+        public static double cosine(Vector v1, Vector v2)
+        {
+            double v1v2 = 0;
+            double l1 = 0;
+            double l2 = 0;
+            if(v1.v_size != v2.v_size) throw new Exception();
+            for(int i = 0; i<v1.v_size; i++)
+            {
+                v1v2 += v1.values[i] * v2.values[i];
+                l1 += v1.values[i] * v1.values[i];
+                l2 += v2.values[i] * v2.values[i];
+            }
+            return v1v2 / (Math.Sqrt(l1) * Math.Sqrt(l2));
+        }
+        public static Vector operator *(Vector v1, double val)
+        {
+            Vector v = new Vector(v1.Values, v1.label);
+            v.context = v1.context;
+            v.contextVectors = v1.contextVectors;
+            v.v_size = v1.v_size;
+            for (int i = 0; i < v1.v_size; i++)
+                v.values[i] *= val;
+            return v;
+        }
+        public static Vector operator /(Vector v1, double val)
+        {
+            Vector v = new Vector(v1.Values, v1.label);
+            v.context = v1.context;
+            v.contextVectors = v1.contextVectors;
+            v.v_size = v1.v_size;
+            for (int i = 0; i < v1.v_size; i++)
+                v.values[i] /= val;
+            return v;
+        }
+        public static Vector operator +(Vector v1, Vector v2)
+        {
+            Vector v = new Vector(v1.Values, v1.label);
+            v.v_size = v1.v_size;
+            for (int i = 0; i < v1.v_size; i++)
+                v.values[i] = v1.values[i] + v2.values[i];
+            return v;
+        }
         public Task<double> compare(Vector toCompareWith, comparisonStyle style)
         {
 
@@ -130,42 +202,117 @@ namespace DistributionalSemantics
                 {
                     switch (style)
                     {
+                        case comparisonStyle.APSyn:
+                            int apsyntop = 300;
+                            var apsynasc_order1 = sortedComponents(this, false, apsyntop);
+                            var apsynasc_order2 = sortedComponents(toCompareWith, false, apsyntop);
+                            double r = 0;
+                            for (int i = 0; i < apsyntop; i++)
+                            {
+
+                                int c1 = apsynasc_order1[i];
+                                if (apsynasc_order2.Contains(c1))
+                                {
+
+                                    int i1 = i + 1;
+                                    int i2 = apsynasc_order2.IndexOf(c1) + 1;
+
+                                    r += 1/((i1 + i2) / (double)2.0);
+                                }
+                            }
+                            tcs.SetResult(r);
+                            break;
                         case comparisonStyle.RESM:
-                            int top = 100;
-                            int k = 30;
+                            int top = 150;
+                            int k = 2;
                             var asc_order1 = sortedComponents(this, true, top);
                             var asc_order2 = sortedComponents(toCompareWith, true, top);
                             var desc_order1 = sortedComponents(this, false, top);
                             var desc_order2 = sortedComponents(toCompareWith, false, top);
+                            var cent1resm = Model.centroidsModel.getVector(this.label);
+                            
+                            List<int>[] ctxAsc = null;
+                            List<int>[] ctxDsc = null;
+                            if(context)
+                            {
+                                ctxAsc = new List<int>[contextVectors.Length];
+                                ctxDsc = new List<int>[contextVectors.Length];
+                                for (int i = 0; i < contextVectors.Length; i++)
+                                {
+                                    ctxAsc[i] = sortedComponents(contextVectors[i], true, top);
+                                    ctxDsc[i] = sortedComponents(contextVectors[i], false, top);
+                                }
+                            }
                             double result1 = 0;
                             double result2 = 0;
+                            double h1 = 1;
+                            double h2 = 1;
                             for (int i = 0; i < top; i++ )
                             {
+                                double hp1 = 1;
+                                double hp2 = 1;
                                 int c1 = asc_order1[i];
                                 if(asc_order2.Contains(c1))
                                 {
+                                    
                                     int i1 = i + 1;
                                     int i2 = asc_order2.IndexOf(c1) + 1;
+                                    
                                     double p1 = Math.Exp(-i1 * k / (double)v_size);
                                     double p2 = Math.Exp(-i2*k/(double)v_size);
-                                    result1 += (double)(p1 * p2);
+                                     
+                                    //result1 += (double)(p1 * p2);
+                                     
+                                    result1 += this.values[i] * toCompareWith.values[i];// - Math.Pow(cent1resm.values[i],0.144); 
                                 }
                                 
                                 int dc1 = desc_order1[i];
                                 if (desc_order2.Contains(dc1))
                                 {
+                                    
                                     int di1 = i;
                                     int di2 = desc_order2.IndexOf(c1);
                                     
                                     double pi1 = Math.Exp(-di1 * k / (double)v_size);
                                     double pi2 = Math.Exp(-di2 *k/(double)v_size);
-                                    result2 += (double)(pi1 * pi2);
+                                    //result2 += (double)(pi1 * pi2);
+                                    
+                                    result2 += this.values[i] * toCompareWith.values[i];// - Math.Pow(cent1resm.values[i], 0.144); 
                                 }
-                                
-                                
-                                
+                                if(context)
+                                {
+                                    for (int j = 0; j < contextVectors.Length; j++ )
+                                    {
+                                        if (ctxAsc[j].Contains(c1))
+                                        {
+                                            int dpi1 = i;
+                                            int dpi2 = ctxAsc[j].IndexOf(i);
+                                            double ppi1 = Math.Exp(-dpi1 * k / (double)v_size);
+                                            double ppi2 = Math.Exp(-dpi2 * k / (double)v_size);
+                                            
+                                            //hp1 += (double) ppi1 * ppi2;// - Math.Pow(cent1resm.values[i], 0.144);
+                                            hp1 *= this.values[i] * contextVectors[j].values[i]; 
+                                      
+                                        }
+                                        if (ctxDsc[j].Contains(c1))
+                                        {
+                                            int dpni1 = i;
+                                            int dpni2 = ctxDsc[j].IndexOf(i);
+                                            double pnpi1 = Math.Exp(-dpni1 * k / (double)v_size);
+                                            double pnpi2 = Math.Exp(-dpni2 * k / (double)v_size);
+
+                                            //hp2 += (double)pnpi1 * pnpi2;// - Math.Pow(cent1resm.values[i], 0.144);
+                                            hp2 *= this.values[i] * contextVectors[j].values[i];
+                                        }
+                                    }
+                                }
+
+                                h1 *= hp1;
+                                h2 *= hp2;
                             }
-                            tcs.SetResult((double)(result1+result2));
+                            h1 /= v_size;
+                            h2 /= v_size;
+                            tcs.SetResult((double)(result1/h1+result2/h2));
                             break;
                         case comparisonStyle.CosineHR:
                             /*
@@ -185,9 +332,23 @@ namespace DistributionalSemantics
                                 }
                             tcs.SetResult(y_est);
                             */
-                        
-                            var cent1 = Model.centroidsModel.getVector(this.label);
-                            var cent2 = Model.centroidsModel.getVector(toCompareWith.label);
+                            
+                            Vector cent1 = null; 
+                            Vector cent2 = null;
+                            try
+                            {
+                            cent1 = Model.centroidsModel.getVector(this.label);
+                            }
+                            catch
+                            {
+                                cent1 = Vector.dummy(300);}
+                            try
+                            {
+                                cent2 = Model.centroidsModel.getVector(toCompareWith.label);
+                            }
+                            catch
+                            { cent2 = Vector.dummy(300); }
+                            
                             ////double cent_sim1 = Model.sl.findEntry(this.label, toCompareWith.label).simLex / 10;
                             //double cent_sim2 = Model.sl.findEntry(this.label, toCompareWith.label).simLex / 10;
                             //double cent_sim1 = Model.sl.findEntry(this.label, toCompareWith.label).concw1 / 10;
@@ -199,7 +360,7 @@ namespace DistributionalSemantics
                             //double q2 = (double)(-1*Model.Beta2 * (1 - cent_sim2 - Model.Beta1));
                             double r1 = (double)(1 / (1 + Math.Exp(-q1)));
                             //double r2 = (double)(1 / (1 + Math.Exp(-q2)));
-                            double y_est = cosine(this.values, toCompareWith.values, v_size) - Math.Pow(cent_sim1, 3.0);
+                            double y_est = cosine(this.values, toCompareWith.values, v_size) - Math.Pow(cent_sim1, 0.12);
                             double y = Model.sl.findEntry(this.label, toCompareWith.label).simLex / 10;
                             
                             if(Model.updating)
